@@ -134,7 +134,7 @@ const Landing: React.FC = () => {
       {/* Footer */}
       <footer className="py-12 bg-black/30 text-center">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-[#b8a99d]">© 2024 Legacy. All Rights Reserved. Weave your story, preserve your heritage.</p>
+          <p className="text-[#b8a99d]">© 2025 Legacy. All Rights Reserved. Weave your story, preserve your heritage.</p>
         </div>
       </footer>
 
