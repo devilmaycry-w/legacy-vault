@@ -109,7 +109,7 @@ const Timeline: React.FC = () => {
       <div className="relative z-10 px-4 sm:px-6 md:px-10 py-8 sm:py-12">
         {/* Header */}
         <div className="text-center mb-12 sm:mb-16">
-          <h1 className="text-3xl sm:text-4xl font-bold text-white font-serif mb-2">Family Timeline</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white font-serif mb-2">Beyond Time, Beyond Limits</h1>
           <p className="text-[#b8a99d] text-base sm:text-lg">Journey through our shared memories</p>
         </div>
 
