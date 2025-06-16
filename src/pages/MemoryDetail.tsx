@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,6 +7,22 @@ import { Memory, Comment } from '../types';
 import { getMemoryById } from '../services/firestore';
 import AudioPlayer from '../components/AudioPlayer';
 import { Home, Share, Download, Play, ArrowLeft } from 'lucide-react';
+import { db } from '../services/firebase';
+import {
+  doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  getDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+  onSnapshot,
+  query,
+  orderBy,
+} from 'firebase/firestore';
+
+const reactionEmojis = ['❤️', '😂', '😢', '😮'];
 
 const MemoryDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -14,7 +31,6 @@ const MemoryDetail: React.FC = () => {
   const [memory, setMemory] = useState<Memory | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [reactions, setReactions] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   // Helper function to get user initials for fallback avatar
@@ -38,20 +54,15 @@ const MemoryDetail: React.FC = () => {
     return currentUser?.photoURL || null;
   };
 
+  // Fetch memory details
   useEffect(() => {
     const loadMemory = async () => {
       if (!id) return;
-      
       try {
         setLoading(true);
         const fetchedMemory = await getMemoryById(id);
-        
         if (fetchedMemory) {
-          setMemory(fetchedMemory);
-          setReactions(fetchedMemory.reactions);
-          
-          // Initialize with empty comments array - no default comment
-          setComments([]);
+          setMemory({ ...fetchedMemory, id });
         }
       } catch (error) {
         console.error('Error loading memory:', error);
@@ -60,37 +71,75 @@ const MemoryDetail: React.FC = () => {
         setLoading(false);
       }
     };
-
     loadMemory();
-  }, [id, currentUser, showError]);
+  }, [id, showError]);
 
-  const handleReaction = (emoji: string) => {
-    setReactions(prev => ({
-      ...prev,
-      [emoji]: (prev[emoji] || 0) + 1
-    }));
-    showSuccess('Reaction Added', `You reacted with ${emoji}`);
-    // TODO: Save reaction to Firestore
+  // Listen for comments in Firestore
+  useEffect(() => {
+    if (!id) return;
+    const q = query(
+      collection(db, 'memories', id, 'comments'),
+      orderBy('createdAt', 'asc')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment)));
+    });
+    return unsubscribe;
+  }, [id]);
+
+  // Refresh memory after reaction
+  const refreshMemory = async () => {
+    if (!id) return;
+    const docRef = doc(db, 'memories', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      setMemory({ ...docSnap.data(), id } as Memory);
+    }
   };
 
-  const handleCommentSubmit = (e: React.FormEvent) => {
+  // Handle reaction click
+  const handleReaction = async (emoji: string) => {
+    if (!memory || !currentUser) return;
+    const memoryRef = doc(db, 'memories', memory.id);
+    const currentReactions: string[] = Array.isArray(memory.reactions?.[emoji]) ? memory.reactions[emoji] : [];
+    const hasReacted = currentReactions.includes(currentUser.uid);
+
+    try {
+      await updateDoc(memoryRef, {
+        [`reactions.${emoji}`]: hasReacted
+          ? arrayRemove(currentUser.uid)
+          : arrayUnion(currentUser.uid),
+      });
+      showSuccess(
+        hasReacted ? 'Reaction Removed' : 'Reaction Added',
+        hasReacted
+          ? `You removed your ${emoji} reaction`
+          : `You reacted with ${emoji}`
+      );
+      refreshMemory();
+    } catch (error) {
+      showError('Reaction Failed', 'Could not update your reaction.');
+    }
+  };
+
+  // Handle comment submit
+  const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !currentUser) return;
+    if (!newComment.trim() || !currentUser || !memory?.id) return;
 
-    const comment: Comment = {
-      id: Date.now().toString(),
-      memoryId: id || '1',
-      userId: currentUser.uid,
-      userName: getDisplayName(),
-      userAvatar: getUserAvatar() || '',
-      content: newComment.trim(),
-      createdAt: new Date()
-    };
-
-    setComments(prev => [...prev, comment]);
-    setNewComment('');
-    showSuccess('Comment Added', 'Your comment has been posted!');
-    // TODO: Save comment to Firestore
+    try {
+      await addDoc(collection(db, 'memories', memory.id, 'comments'), {
+        content: newComment.trim(),
+        userId: currentUser.uid,
+        userName: getDisplayName(),
+        userAvatar: getUserAvatar() || '',
+        createdAt: serverTimestamp(),
+      });
+      setNewComment('');
+      showSuccess('Comment Added', 'Your comment has been posted!');
+    } catch (error) {
+      showError('Comment Failed', 'Could not post your comment.');
+    }
   };
 
   const handleShare = async () => {
@@ -99,11 +148,10 @@ const MemoryDetail: React.FC = () => {
         await navigator.share({
           title: memory.title,
           text: memory.description,
-          url: window.location.href
+          url: window.location.href,
         });
         showSuccess('Shared Successfully', 'Memory shared!');
       } else {
-        // Fallback: copy to clipboard
         await navigator.clipboard.writeText(window.location.href);
         showSuccess('Link Copied', 'Memory link copied to clipboard!');
       }
@@ -128,12 +176,14 @@ const MemoryDetail: React.FC = () => {
     }
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: any) => {
+    if (!date) return '';
+    const d = date instanceof Date ? date : date.toDate?.() || new Date(date);
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
-    }).format(date);
+      day: 'numeric',
+    }).format(d);
   };
 
   if (loading) {
@@ -165,16 +215,16 @@ const MemoryDetail: React.FC = () => {
     <div className="min-h-screen bg-[#181411] text-white">
       {/* Background blur effect */}
       {memory.mediaType === 'photo' && (
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center filter blur-lg brightness-50"
           style={{ backgroundImage: `url("${memory.mediaUrl}")` }}
         />
       )}
-      
+
       <div className="relative z-10 p-4 md:p-8">
         {/* Back button */}
         <div className="mb-4">
-          <Link 
+          <Link
             to="/dashboard"
             className="inline-flex items-center gap-2 text-[#b8a99d] hover:text-[#e9883e] transition-colors"
           >
@@ -251,16 +301,22 @@ const MemoryDetail: React.FC = () => {
             {/* Reactions */}
             <div className="bg-[rgba(56,47,41,0.8)] backdrop-blur-md border border-[rgba(255,255,255,0.1)] rounded-lg p-3 shadow-lg">
               <div className="grid grid-cols-4 gap-2">
-                {['❤️', '😂', '😢', '😮'].map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleReaction(emoji)}
-                    className="text-2xl hover:scale-125 transition-transform flex flex-col items-center p-2 rounded-lg hover:bg-[rgba(233,136,62,0.1)]"
-                  >
-                    <span>{emoji}</span>
-                    <span className="text-xs text-[#b8a99d] mt-1">{reactions[emoji] || 0}</span>
-                  </button>
-                ))}
+                {reactionEmojis.map((emoji) => {
+                  const users: string[] = Array.isArray(memory.reactions?.[emoji]) ? memory.reactions[emoji] : [];
+                  const userReacted = currentUser && users.includes(currentUser.uid);
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={() => handleReaction(emoji)}
+                      className={`text-2xl transition-transform flex flex-col items-center p-2 rounded-lg hover:bg-[rgba(233,136,62,0.1)] ${
+                        userReacted ? 'scale-110 text-[#e9883e] font-bold' : 'hover:scale-125'
+                      }`}
+                    >
+                      <span>{emoji}</span>
+                      <span className="text-xs text-[#b8a99d] mt-1">{users.length}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -287,21 +343,21 @@ const MemoryDetail: React.FC = () => {
             {/* Action Buttons */}
             <div className="bg-[rgba(56,47,41,0.8)] backdrop-blur-md border border-[rgba(255,255,255,0.1)] rounded-lg p-4 shadow-lg">
               <div className="grid grid-cols-3 gap-2">
-                <button 
+                <button
                   onClick={handleShare}
                   className="flex flex-col items-center text-white hover:text-[#e9883e] transition-colors group p-2 rounded-lg hover:bg-[rgba(233,136,62,0.1)]"
                 >
                   <Share className="w-5 h-5 mb-1" />
                   <span className="text-xs">Share</span>
                 </button>
-                <button 
+                <button
                   onClick={handleDownload}
                   className="flex flex-col items-center text-white hover:text-[#e9883e] transition-colors group p-2 rounded-lg hover:bg-[rgba(233,136,62,0.1)]"
                 >
                   <Download className="w-5 h-5 mb-1" />
                   <span className="text-xs">Download</span>
                 </button>
-                <Link 
+                <Link
                   to="/dashboard"
                   className="flex flex-col items-center text-white hover:text-[#e9883e] transition-colors group p-2 rounded-lg hover:bg-[rgba(233,136,62,0.1)]"
                 >
@@ -313,7 +369,7 @@ const MemoryDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Comments Section - Only shows if there are actual comments */}
+        {/* Comments Section */}
         {comments.length > 0 && (
           <div className="max-w-4xl mx-auto mt-8">
             <div className="bg-[rgba(56,47,41,0.8)] backdrop-blur-md border border-[rgba(255,255,255,0.1)] rounded-lg p-6 shadow-lg">
@@ -328,13 +384,13 @@ const MemoryDetail: React.FC = () => {
                         alt={comment.userName}
                         className="w-10 h-10 rounded-full flex-shrink-0 border-2 border-[#e9883e]"
                         onError={(e) => {
-                          // Fallback to initials if image fails to load
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
                           const parent = target.parentElement;
                           if (parent) {
                             const initialsDiv = document.createElement('div');
-                            initialsDiv.className = 'w-10 h-10 rounded-full bg-[#e9883e] text-[#181411] flex items-center justify-center text-sm font-bold border-2 border-[#e9883e]';
+                            initialsDiv.className =
+                              'w-10 h-10 rounded-full bg-[#e9883e] text-[#181411] flex items-center justify-center text-sm font-bold border-2 border-[#e9883e]';
                             initialsDiv.textContent = getUserInitials(comment.userName);
                             parent.appendChild(initialsDiv);
                           }
