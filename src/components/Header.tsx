@@ -5,7 +5,7 @@ import { LayoutDashboard, Clock, Upload, Users, Star, X, Search } from 'lucide-r
 import ProfileAvatar from './ProfileAvatar';
 
 const Header: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -202,8 +202,8 @@ const Header: React.FC = () => {
                       />
                     </div>
                   </div>
-                  {/* Navigation */}
-                  <nav className="px-4 py-4 flex-1 overflow-y-auto">
+                  {/* Navigation & Sign Out */}
+                  <nav className="px-4 py-4 flex-1 overflow-y-auto flex flex-col justify-between">
                     <div className="space-y-1">
                       {navigationItems.map(({ to, label, icon: Icon }, idx) => (
                         <button
@@ -250,6 +250,30 @@ const Header: React.FC = () => {
                           </span>
                         </button>
                       ))}
+                    </div>
+                    {/* Sign Out Button - only on mobile sidebar */}
+                    <div className="mt-8 border-t border-[#232323] pt-4">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await logout();
+                            setMobileOpen(false);
+                            navigate('/');
+                          } catch (e) {
+                            // Optionally handle error
+                          }
+                        }}
+                        className="
+                          w-full flex items-center gap-2 px-3 py-2 rounded-lg
+                          text-red-400 hover:text-white hover:bg-red-500
+                          transition-all font-semibold
+                        "
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h4a2 2 0 012 2v1" />
+                        </svg>
+                        Sign Out
+                      </button>
                     </div>
                   </nav>
                 </div>
