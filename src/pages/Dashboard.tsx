@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Memory, VaultMember } from '../types';
 import { getMemories } from '../services/firestore';
-import { loadVaultSettings } from '../services/vaultStorage';
+import { saveVaultSettingsForUser, loadVaultSettingsForUser } from '../services/vaultStorage';
 import MemoryCard from '../components/MemoryCard';
 import EditableVaultHeader from '../components/EditableVaultHeader';
 import { Plus, Settings, AlertCircle } from 'lucide-react';
@@ -12,49 +12,53 @@ import { Plus, Settings, AlertCircle } from 'lucide-react';
 const Dashboard: React.FC = () => {
   const { currentUser } = useAuth();
   const { showError } = useToast();
+
   const [memories, setMemories] = useState<Memory[]>([]);
-  const [members] = useState<VaultMember[]>([]);
+  const [members, setMembers] = useState<VaultMember[]>([]);
   const [filter, setFilter] = useState<'all' | 'photo' | 'video' | 'audio' | 'text'>('all');
   const [adminDrawerOpen, setAdminDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [permissionError, setPermissionError] = useState(false);
-  
+
   // Vault settings with persistence
   const [vaultName, setVaultName] = useState('The Family Vault');
   const [vaultBackground, setVaultBackground] = useState('https://images.pexels.com/photos/1054218/pexels-photo-1054218.jpeg');
 
+  // Load vault settings from Firestore for current user
   useEffect(() => {
-    // Load saved vault settings
-    const savedSettings = loadVaultSettings();
-    if (savedSettings) {
-      setVaultName(savedSettings.name);
-      setVaultBackground(savedSettings.backgroundImage);
-    } else if (currentUser?.displayName) {
-      // Set personalized vault name only if no saved settings
-      setVaultName(`The ${currentUser.displayName.split(' ')[0]} Family Vault`);
-    }
+    if (!currentUser) return;
+
+    (async () => {
+      try {
+        const savedSettings = await loadVaultSettingsForUser(currentUser.uid);
+        if (savedSettings) {
+          setVaultName(savedSettings.name);
+          setVaultBackground(savedSettings.backgroundImage);
+        } else if (currentUser.displayName) {
+          setVaultName(`The ${currentUser.displayName.split(' ')[0]} Family Vault`);
+        }
+      } catch (err) {
+        // Optionally show error
+      }
+    })();
+  }, [currentUser]);
+
+  // Load memories and set mock members
+  useEffect(() => {
+    if (!currentUser) return;
 
     const loadMemories = async () => {
       try {
         setLoading(true);
         setPermissionError(false);
-        
-        if (!currentUser) {
-          console.error('No authenticated user found');
-          showError('Authentication Required', 'Please log in to view memories.');
-          return;
-        }
 
-        console.log('Loading memories for user:', currentUser.uid);
         const fetchedMemories = await getMemories(currentUser);
         setMemories(fetchedMemories);
       } catch (error: any) {
-        console.error('Error loading memories:', error);
-        
         if (error?.code === 'permission-denied' || error?.message?.includes('Missing or insufficient permissions')) {
           setPermissionError(true);
           showError(
-            'Permission Denied', 
+            'Permission Denied',
             'Unable to access memories. Please check your Firebase Security Rules or contact your administrator.'
           );
         } else {
@@ -67,7 +71,7 @@ const Dashboard: React.FC = () => {
 
     loadMemories();
 
-    // Mock members data
+    // Mock members
     const mockMembers: VaultMember[] = [
       {
         id: '1',
@@ -86,19 +90,39 @@ const Dashboard: React.FC = () => {
         role: 'editor',
         status: 'active',
         joinedAt: new Date('2023-02-15')
+      },
+      {
+        id: '3',
+        email: 'mia@example.com',
+        name: 'Mia Carter',
+        avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg',
+        role: 'viewer',
+        status: 'active',
+        joinedAt: new Date('2023-03-10')
       }
+      // Add more mock members if desired
     ];
+    setMembers(mockMembers);
+  }, [currentUser, showError]);
 
-    // setMembers(mockMembers); // Commented out since members is now const
-  }, [showError, currentUser]);
-
-  const filteredMemories = memories.filter(memory => 
+  const filteredMemories = memories.filter(memory =>
     filter === 'all' || memory.mediaType === filter
   );
 
-  const handleVaultUpdate = (name: string, image: string) => {
+  // Save updated vault settings to Firestore per user
+  const handleVaultUpdate = async (name: string, image: string) => {
     setVaultName(name);
     setVaultBackground(image);
+    if (currentUser) {
+      try {
+        await saveVaultSettingsForUser(currentUser.uid, {
+          name,
+          backgroundImage: image
+        });
+      } catch (err) {
+        showError('Error', 'Could not save vault settings.');
+      }
+    }
   };
 
   return (
@@ -226,15 +250,27 @@ const Dashboard: React.FC = () => {
               >
                 Manage Members
               </Link>
-              <a href="#" className="block text-[#b8a99d] hover:text-[#e9883e] transition-colors">
+              <Link
+                to="/settings"
+                className="block text-[#b8a99d] hover:text-[#e9883e] transition-colors"
+                onClick={() => setAdminDrawerOpen(false)}
+              >
                 Vault Settings
-              </a>
-              <a href="#" className="block text-[#b8a99d] hover:text-[#e9883e] transition-colors">
+              </Link>
+              <Link
+                to="/activity"
+                className="block text-[#b8a99d] hover:text-[#e9883e] transition-colors"
+                onClick={() => setAdminDrawerOpen(false)}
+              >
                 Activity Log
-              </a>
-              <a href="#" className="block text-[#b8a99d] hover:text-[#e9883e] transition-colors">
+              </Link>
+              <Link
+                to="/storage"
+                className="block text-[#b8a99d] hover:text-[#e9883e] transition-colors"
+                onClick={() => setAdminDrawerOpen(false)}
+              >
                 Storage Usage
-              </a>
+              </Link>
             </nav>
           </div>
         </div>
