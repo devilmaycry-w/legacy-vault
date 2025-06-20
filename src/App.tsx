@@ -16,6 +16,9 @@ import ManageMembers from './pages/ManageMembers';
 import AcceptInvite from './pages/AcceptInvite';
 import Privacy from './pages/Privacy';
 import AboutUs from './pages/AboutUs';
+import Settings from './pages/Settings';
+import Activity from './pages/Activity';
+import Storage from './pages/Storage';
 
 function App() {
   return (
@@ -69,6 +72,31 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ManageMembers />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* ---- NEW ROUTES BELOW ---- */}
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/activity"
+                  element={
+                    <ProtectedRoute>
+                      <Activity />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/storage"
+                  element={
+                    <ProtectedRoute>
+                      <Storage />
                     </ProtectedRoute>
                   }
                 />
