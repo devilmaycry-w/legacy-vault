@@ -131,9 +131,10 @@ const Dashboard: React.FC = () => {
           }}
         >
           <div
-  className="p-8 flex flex-col items-start justify-center min-h-[180px]">
-  <h1 className="text-3xl font-bold font-serif mb-2" style={{textShadow: '0 2px 6px #181411bb'}}>{vaultName}</h1>
-</div>
+    className="bg-[#18141133] p-8 flex flex-col items-start justify-center min-h-[180px]"
+  >
+    <h1 className="text-3xl font-bold font-serif mb-2" style={{textShadow: '0 2px 6px #181411bb'}}>{vaultName}</h1>
+  </div>
         </div>
 
         {/* Members Section */}
