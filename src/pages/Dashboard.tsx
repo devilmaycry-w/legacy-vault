@@ -4,9 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Memory, VaultMember } from '../types';
 import { getMemories } from '../services/firestore';
-import { saveVaultSettingsForUser, loadVaultSettingsForUser } from '../services/vaultStorage';
+import { loadVaultSettingsForUser } from '../services/vaultStorage';
 import MemoryCard from '../components/MemoryCard';
-import EditableVaultHeader from '../components/EditableVaultHeader';
 import { Plus, Settings, AlertCircle } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
@@ -20,26 +19,25 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [permissionError, setPermissionError] = useState(false);
 
-  // Vault settings with persistence
+  // Static vault header values (default, non-editable)
   const [vaultName, setVaultName] = useState('The Family Vault');
-  const [vaultBackground, setVaultBackground] = useState('https://images.pexels.com/photos/1054218/pexels-photo-1054218.jpeg');
+  const [vaultBackground, setVaultBackground] = useState(
+    'https://images.pexels.com/photos/1054218/pexels-photo-1054218.jpeg'
+  );
 
-  // Load vault settings from Firestore for current user
+  // Load vault settings from Firestore for current user (but not editable here)
   useEffect(() => {
     if (!currentUser) return;
-
     (async () => {
       try {
         const savedSettings = await loadVaultSettingsForUser(currentUser.uid);
         if (savedSettings) {
-          setVaultName(savedSettings.name);
-          setVaultBackground(savedSettings.backgroundImage);
+          setVaultName(savedSettings.name || 'The Family Vault');
+          setVaultBackground(savedSettings.backgroundImage || 'https://images.pexels.com/photos/1054218/pexels-photo-1054218.jpeg');
         } else if (currentUser.displayName) {
           setVaultName(`The ${currentUser.displayName.split(' ')[0]} Family Vault`);
         }
-      } catch (err) {
-        // Optionally show error
-      }
+      } catch (err) {}
     })();
   }, [currentUser]);
 
@@ -55,7 +53,10 @@ const Dashboard: React.FC = () => {
         const fetchedMemories = await getMemories(currentUser);
         setMemories(fetchedMemories);
       } catch (error: any) {
-        if (error?.code === 'permission-denied' || error?.message?.includes('Missing or insufficient permissions')) {
+        if (
+          error?.code === 'permission-denied' ||
+          error?.message?.includes('Missing or insufficient permissions')
+        ) {
           setPermissionError(true);
           showError(
             'Permission Denied',
@@ -100,45 +101,39 @@ const Dashboard: React.FC = () => {
         status: 'active',
         joinedAt: new Date('2023-03-10')
       }
-      // Add more mock members if desired
     ];
     setMembers(mockMembers);
   }, [currentUser, showError]);
 
-  const filteredMemories = memories.filter(memory =>
-    filter === 'all' || memory.mediaType === filter
+  const filteredMemories = memories.filter(
+    (memory) => filter === 'all' || memory.mediaType === filter
   );
 
-  // Save updated vault settings to Firestore per user
-  const handleVaultUpdate = async (name: string, image: string) => {
-    setVaultName(name);
-    setVaultBackground(image);
-    if (currentUser) {
-      try {
-        await saveVaultSettingsForUser(currentUser.uid, {
-          name,
-          backgroundImage: image
-        });
-      } catch (err) {
-        showError('Error', 'Could not save vault settings.');
-      }
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[#181411] text-white" style={{
-      backgroundImage: `
-        radial-gradient(circle at top left, rgba(233, 136, 62, 0.05), transparent 30%),
-        radial-gradient(circle at bottom right, rgba(56, 47, 41, 0.1), transparent 30%)
-      `
-    }}>
+    <div
+      className="min-h-screen bg-[#181411] text-white"
+      style={{
+        backgroundImage: `
+          radial-gradient(circle at top left, rgba(233, 136, 62, 0.05), transparent 30%),
+          radial-gradient(circle at bottom right, rgba(56, 47, 41, 0.1), transparent 30%)
+        `
+      }}
+    >
       <div className="px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 py-8">
-        {/* Editable Hero Section */}
-        <EditableVaultHeader
-          vaultName={vaultName}
-          backgroundImage={vaultBackground}
-          onUpdate={handleVaultUpdate}
-        />
+        {/* Static Hero Section */}
+        <div
+          className="rounded-2xl shadow-xl mb-8 overflow-hidden relative"
+          style={{
+            backgroundImage: `url(${vaultBackground})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            minHeight: '180px',
+          }}
+        >
+          <div className="bg-[#181411cc] p-8 flex flex-col items-start justify-center min-h-[180px]">
+            <h1 className="text-3xl font-bold font-serif mb-2">{vaultName}</h1>
+          </div>
+        </div>
 
         {/* Members Section */}
         <section className="bg-[rgba(56,47,41,0.6)] backdrop-blur-md border border-[rgba(255,255,255,0.05)] rounded-2xl p-4 sm:p-6 mb-8">
