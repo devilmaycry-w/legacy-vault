@@ -33,7 +33,7 @@ const Dashboard: React.FC = () => {
         const savedSettings = await loadVaultSettingsForUser(currentUser.uid);
         if (savedSettings) {
           setVaultName(savedSettings.name || 'The Family Vault');
-          setVaultBackground(savedSettings.backgroundImage || 'https://images.pexels.com/photos/1054218/pexels-photo-1054218.jpeg');
+          setVaultBackground(savedSettings.backgroundImage || 'https://i.postimg.cc/wj8D601C/c0a7e1aa519091ad9578e2529686a296.jpg');
         } else if (currentUser.displayName) {
           setVaultName(`The ${currentUser.displayName.split(' ')[0]} Family Vault`);
         }
