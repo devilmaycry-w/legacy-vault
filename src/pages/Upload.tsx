@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { uploadToCloudinary } from '../services/cloudinary';
 import { createMemory } from '../services/firestore';
 import { Camera, Video, Music, FileText, Upload, X } from 'lucide-react';
+import { logActivity } from '../utils/logActivity'; // <-- ADD THIS LINE
 
 interface FilePreview {
   file: File;
@@ -139,6 +140,16 @@ const UploadPage: React.FC = () => {
 
       const memoryId = await createMemory(memoryData);
       
+      // --- Log the activity here ---
+      await logActivity({
+        user: currentUser.displayName || currentUser.email || 'Unknown User',
+        avatar: currentUser.photoURL || '',
+        action: 'uploaded a new memory',
+        target: title.trim(),
+        type: contentType,
+      });
+      // ----------------------------
+
       // Final success feedback
       showSuccess('Memory Saved!', 'Your memory has been successfully added to the vault');
 
