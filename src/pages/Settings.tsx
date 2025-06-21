@@ -5,7 +5,8 @@ import { useToast } from '../contexts/ToastContext';
 
 const Settings: React.FC = () => {
   const { currentUser } = useAuth();
-  const { showError } = useToast();
+  // Import showSuccess as well
+  const { showError, showSuccess } = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,11 @@ const Settings: React.FC = () => {
         description,
         backgroundImage: '', // No change here
       });
+      // Show a friendly success toast after saving!
+      showSuccess(
+        'Vault Saved!',
+        `🎉 Your vault "${name}" has been updated successfully.`
+      );
     } catch (err) {
       showError('Error', 'Could not save settings');
     }
