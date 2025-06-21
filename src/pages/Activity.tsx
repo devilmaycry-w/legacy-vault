@@ -3,7 +3,13 @@ import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { Clock, User, Image as ImageIcon, FileText, Trash2 } from "lucide-react";
 
-// Helper to display the right icon for activity type
+const DEFAULT_AVATAR = "/default-avatar.png";
+
+// Treat empty strings as missing
+function safeDisplay(val: string | undefined | null, fallback: string) {
+  return val && val.trim() ? val : fallback;
+}
+
 function getTypeIcon(type: string) {
   switch (type) {
     case "photo":
@@ -21,7 +27,6 @@ function getTypeIcon(type: string) {
   }
 }
 
-// Helper to format Firestore timestamps
 function formatTime(timestamp: any) {
   if (!timestamp) return "Unknown time";
   const date = timestamp.seconds
@@ -34,8 +39,6 @@ function formatTime(timestamp: any) {
   if (diff < 172800) return "Yesterday";
   return date.toLocaleString();
 }
-
-const DEFAULT_AVATAR = "/default-avatar.png"; // Place a suitable default avatar image in your public folder
 
 const Activity: React.FC = () => {
   const [activities, setActivities] = useState<any[]>([]);
@@ -77,8 +80,8 @@ const Activity: React.FC = () => {
             activities.map((activity: any) => (
               <li key={activity.id} className="flex items-center bg-[#181411] rounded-xl p-4 shadow">
                 <img
-                  src={activity.avatar || DEFAULT_AVATAR}
-                  alt={activity.user || "Unknown user"}
+                  src={safeDisplay(activity.avatar, DEFAULT_AVATAR)}
+                  alt={safeDisplay(activity.user, "Unknown user")}
                   className="w-12 h-12 rounded-full mr-4 border-2 border-[#e9883e] object-cover"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = DEFAULT_AVATAR;
@@ -86,10 +89,16 @@ const Activity: React.FC = () => {
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-[#e9883e]">{activity.user || "Unknown User"}</span>
-                    <span className="text-[#b8a99d]">{activity.action || "performed an action"}</span>
-                    {activity.target && (
-                      <span className="ml-1 font-semibold text-white">{activity.target}</span>
+                    <span className="font-semibold text-[#e9883e]">
+                      {safeDisplay(activity.user, "Unknown User")}
+                    </span>
+                    <span className="text-[#b8a99d]">
+                      {safeDisplay(activity.action, "performed an action")}
+                    </span>
+                    {safeDisplay(activity.target, "") && (
+                      <span className="ml-1 font-semibold text-white">
+                        {safeDisplay(activity.target, "")}
+                      </span>
                     )}
                     <span className="ml-2">{getTypeIcon(activity.type)}</span>
                   </div>
