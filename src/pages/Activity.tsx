@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
-import { db } from "../firebase"; // Make sure the path is correct for your project
+import { db } from "../services/firebase"; // Make sure the path is correct for your project
 import { Clock, User, Image as ImageIcon, FileText, Trash2 } from "lucide-react";
 
 // Helper to display the right icon for activity type
