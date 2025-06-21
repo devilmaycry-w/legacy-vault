@@ -1,7 +1,7 @@
 ```markdown
 # Legacy Vault
 
-A modern, secure, and user-friendly digital vault for managing your personal knowledge, sensitive notes, and digital legacy.  
+A modern, secure, and user-friendly digital vault for managing your personal knowledge, memories, sensitive notes, and digital legacy.  
 **Legacy Vault** keeps your important information safe, accessible, and ready to pass down to future generations.
 
 ---
@@ -9,7 +9,7 @@ A modern, secure, and user-friendly digital vault for managing your personal kno
 ## 🚀 Vision
 
 To empower individuals to own and organize their digital legacy—notes, credentials, documents, memories—and pass them on with confidence.  
-Legacy Vault aims to be the go-to digital safe for everyone who values privacy, security, and peace of mind.
+Legacy is more than a vault; it's a living testament to your family's journey.
 
 ---
 
@@ -29,8 +29,6 @@ Legacy Vault aims to be the go-to digital safe for everyone who values privacy, 
 
 - **Frontend:** React, TypeScript, Tailwind CSS
 - **Backend/Database:** Firebase Firestore, Firebase Authentication
-- **State Management:** React Context (Auth, Toast)
-- **Persistence:** Cloud (Firestore) & LocalStorage fallback
 
 ---
 
