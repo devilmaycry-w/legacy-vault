@@ -19,6 +19,8 @@ import AboutUs from './pages/AboutUs';
 import Settings from './pages/Settings';
 import Activity from './pages/Activity';
 import Storage from './pages/Storage';
+// --- IMPORT ADMIN REVIEW COMPONENT ---
+import AdminReviewMemories from './components/AdminReviewMemories';
 
 function App() {
   return (
@@ -100,6 +102,16 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                {/* ---- ADMIN MEMORY REVIEW ROUTE ---- */}
+                <Route
+                  path="/admin/review"
+                  element={
+                    <ProtectedRoute>
+                      <AdminReviewMemories />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* ---- CATCH-ALL ---- */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>
