@@ -63,13 +63,25 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-[#382f29] mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center">
+        <div className="border-t border-[#382f29] mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-[#b8a99d] text-sm">
             © 2025 Legacy Family Memory Vault. All rights reserved.
           </p>
           <p className="text-[#b8a99d] text-sm mt-2 sm:mt-0">
             Preserving memories, connecting generations.
           </p>
+          <a
+            href="https://www.linkedin.com/in/ankrit-maity-6a37a6351/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-[#b8a99d] hover:text-[#e9883e] text-sm mt-2 sm:mt-0"
+          >
+            {/* LinkedIn SVG Icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.762 2.239 5 5 5h14c2.762 0 5-2.238 5-5v-14c0-2.761-2.238-5-5-5zm-11.75 20.5h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.784-1.75-1.75s.784-1.75 1.75-1.75 1.75.784 1.75 1.75-.784 1.75-1.75 1.75zm15.25 12.268h-3v-5.604c0-1.336-.025-3.06-1.867-3.06-1.868 0-2.154 1.459-2.154 2.962v5.702h-3v-11h2.878v1.501h.041c.4-.757 1.377-1.555 2.834-1.555 3.03 0 3.59 1.995 3.59 4.591v6.463z"/>
+            </svg>
+            Meet The Legacy Creator
+          </a>
         </div>
       </div>
     </footer>
