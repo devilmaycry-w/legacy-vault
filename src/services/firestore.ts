@@ -20,7 +20,6 @@ import { User } from 'firebase/auth';
 import { db, checkFirestoreConnection } from './firebase';
 import { Memory, Invitation, VaultMember } from '../types';
 
-// Enhanced error handling wrapper
 const withErrorHandling = async <T>(
   operation: () => Promise<T>,
   operationName: string,
@@ -28,39 +27,31 @@ const withErrorHandling = async <T>(
 ): Promise<T> => {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      // Check connection before attempting operation
       const isConnected = await checkFirestoreConnection();
       if (!isConnected && attempt === 1) {
         console.warn(`${operationName}: Firestore appears to be offline, attempting operation anyway...`);
       }
-
       const result = await operation();
       return result;
     } catch (error: any) {
       console.error(`${operationName} attempt ${attempt} failed:`, error);
-      
-      // If it's a network error and we have retries left, wait and retry
       if (attempt < retries && (
         error.code === 'unavailable' || 
         error.code === 'deadline-exceeded' ||
         error.message?.includes('offline') ||
         error.message?.includes('network')
       )) {
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff, max 5s
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
         console.log(`Retrying ${operationName} in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
-      
-      // If it's the final attempt or a non-retryable error, throw
       throw error;
     }
   }
-  
   throw new Error(`${operationName} failed after ${retries} attempts`);
 };
 
-// Vault operations
 export const createVault = async (vaultData: any) => {
   return withErrorHandling(
     () => addDoc(collection(db, 'vaults'), {
@@ -77,7 +68,6 @@ export const getVault = async (vaultId: string) => {
     async () => {
       const docRef = doc(db, 'vaults', vaultId);
       const docSnap = await getDoc(docRef);
-      
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() };
       } else {
@@ -106,7 +96,6 @@ export const getUserVaults = async (userId: string) => {
         where('members', 'array-contains', userId),
         orderBy('updatedAt', 'desc')
       );
-      
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -117,7 +106,6 @@ export const getUserVaults = async (userId: string) => {
   );
 };
 
-// Fixed addUserToVault function with correct parameters
 export const addUserToVault = async (
   userId: string, 
   email: string, 
@@ -128,18 +116,15 @@ export const addUserToVault = async (
   return withErrorHandling(
     async () => {
       const vaultRef = doc(db, 'vaults', vaultId);
-      
-      // Create a complete VaultMember object
       const memberData: VaultMember = {
         id: userId,
         email,
         name,
-        avatar: '', // Will be updated when user uploads avatar
+        avatar: '',
         role,
         status: 'active',
         joinedAt: new Date()
       };
-      
       await updateDoc(vaultRef, {
         members: arrayUnion(userId),
         memberDetails: arrayUnion(memberData),
@@ -150,11 +135,14 @@ export const addUserToVault = async (
   );
 };
 
-// Memory operations
 export const createMemory = async (memoryData: any) => {
   return withErrorHandling(
     () => addDoc(collection(db, 'memories'), {
       ...memoryData,
+      // Always set approved to false if privacy is admin-reviewed and not set
+      approved: memoryData.privacy === 'admin-reviewed' && typeof memoryData.approved === 'undefined'
+        ? false
+        : memoryData.approved,
       createdAt: new Date(),
       updatedAt: new Date()
     }),
@@ -167,7 +155,6 @@ export const getMemory = async (memoryId: string) => {
     async () => {
       const docRef = doc(db, 'memories', memoryId);
       const docSnap = await getDoc(docRef);
-      
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() };
       } else {
@@ -183,7 +170,6 @@ export const getMemoryById = async (memoryId: string): Promise<Memory | null> =>
     async () => {
       const docRef = doc(db, 'memories', memoryId);
       const docSnap = await getDoc(docRef);
-      
       if (docSnap.exists()) {
         const data = docSnap.data();
         return {
@@ -203,33 +189,33 @@ export const getMemories = async (user: User): Promise<Memory[]> => {
   return withErrorHandling(
     async () => {
       try {
-        // First try the original query with composite index
         const q = query(
           collection(db, 'memories'),
           where('vaultId', '==', 'default-vault'),
           orderBy('createdAt', 'desc')
         );
-        
         const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            // Convert Firestore Timestamp to Date if needed
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
-          } as Memory;
-        });
+        return querySnapshot.docs
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
+            } as Memory;
+          })
+          .filter(memory =>
+            memory.privacy === 'auto-approved' ||
+            (memory.privacy === 'personal' && memory.uploaderId === user.uid) ||
+            (memory.privacy === 'admin-reviewed' && memory.approved === true)
+          );
       } catch (error: any) {
-        // If the composite index is still building, fall back to a simpler query
         if (error.message?.includes('index') || error.message?.includes('building')) {
           console.warn('Composite index still building, using fallback query without ordering');
-          
           const fallbackQuery = query(
             collection(db, 'memories'),
             where('vaultId', '==', 'default-vault')
           );
-          
           const querySnapshot = await getDocs(fallbackQuery);
           const memories = querySnapshot.docs.map(doc => {
             const data = doc.data();
@@ -239,16 +225,18 @@ export const getMemories = async (user: User): Promise<Memory[]> => {
               createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
             } as Memory;
           });
-          
-          // Sort in memory as a temporary workaround
-          return memories.sort((a, b) => {
-            const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-            const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-            return dateB.getTime() - dateA.getTime();
-          });
+          return memories
+            .filter(memory =>
+              memory.privacy === 'auto-approved' ||
+              (memory.privacy === 'personal' && memory.uploaderId === user.uid) ||
+              (memory.privacy === 'admin-reviewed' && memory.approved === true)
+            )
+            .sort((a, b) => {
+              const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+              const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+              return dateB.getTime() - dateA.getTime();
+            });
         }
-        
-        // Re-throw other errors
         throw error;
       }
     },
@@ -256,47 +244,50 @@ export const getMemories = async (user: User): Promise<Memory[]> => {
   );
 };
 
-export const getVaultMemories = async (vaultId: string) => {
+export const getVaultMemories = async (vaultId: string, user?: User) => {
   return withErrorHandling(
     async () => {
       try {
-        // First try the original query with composite index
         const q = query(
           collection(db, 'memories'),
           where('vaultId', '==', vaultId),
           orderBy('createdAt', 'desc')
         );
-        
         const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        return querySnapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+          .filter(memory =>
+            memory.privacy === 'auto-approved' ||
+            (memory.privacy === 'personal' && user && memory.uploaderId === user.uid) ||
+            (memory.privacy === 'admin-reviewed' && memory.approved === true)
+          );
       } catch (error: any) {
-        // If the composite index is still building, fall back to a simpler query
         if (error.message?.includes('index') || error.message?.includes('building')) {
           console.warn('Composite index still building, using fallback query without ordering');
-          
           const fallbackQuery = query(
             collection(db, 'memories'),
             where('vaultId', '==', vaultId)
           );
-          
           const querySnapshot = await getDocs(fallbackQuery);
           const memories = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           }));
-          
-          // Sort in memory as a temporary workaround
-          return memories.sort((a: any, b: any) => {
-            const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-            const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-            return dateB.getTime() - dateA.getTime();
-          });
+          return memories
+            .filter(memory =>
+              memory.privacy === 'auto-approved' ||
+              (memory.privacy === 'personal' && user && memory.uploaderId === user.uid) ||
+              (memory.privacy === 'admin-reviewed' && memory.approved === true)
+            )
+            .sort((a: any, b: any) => {
+              const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+              const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+              return dateB.getTime() - dateA.getTime();
+            });
         }
-        
-        // Re-throw other errors
         throw error;
       }
     },
@@ -321,7 +312,6 @@ export const deleteMemory = async (memoryId: string) => {
   );
 };
 
-// Invitation operations
 export const saveInvitation = async (invitationData: Omit<Invitation, 'id' | 'createdAt'>) => {
   return withErrorHandling(
     () => addDoc(collection(db, 'invitations'), {
@@ -343,7 +333,6 @@ export const getInvitationByEmail = async (email: string): Promise<Invitation | 
         orderBy('createdAt', 'desc'),
         limit(1)
       );
-      
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
         const doc = querySnapshot.docs[0];
@@ -371,8 +360,7 @@ export const updateInvitationStatus = async (invitationId: string, status: 'acce
   );
 };
 
-// Real-time listeners with error handling
-export const subscribeToVaultMemories = (vaultId: string, callback: (memories: any[]) => void) => {
+export const subscribeToVaultMemories = (vaultId: string, callback: (memories: any[]) => void, user?: User) => {
   const q = query(
     collection(db, 'memories'),
     where('vaultId', '==', vaultId),
@@ -384,12 +372,15 @@ export const subscribeToVaultMemories = (vaultId: string, callback: (memories: a
       const memories = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })).filter(memory =>
+        memory.privacy === 'auto-approved' ||
+        (memory.privacy === 'personal' && user && memory.uploaderId === user.uid) ||
+        (memory.privacy === 'admin-reviewed' && memory.approved === true)
+      );
       callback(memories);
     },
     (error) => {
       console.error('Error in memory subscription:', error);
-      // You might want to show a toast notification here
       if (error.code === 'permission-denied') {
         console.error('Permission denied - check Firestore security rules');
       }
@@ -397,7 +388,6 @@ export const subscribeToVaultMemories = (vaultId: string, callback: (memories: a
   );
 };
 
-// Connection utilities
 export const forceReconnect = async () => {
   try {
     await disableNetwork(db);
