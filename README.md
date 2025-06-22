@@ -32,19 +32,6 @@ Legacy is more than a vault; it's a living testament to your family's journey.
 
 ---
 
-## 📁 Project Structure
-
-```
-src/
-  components/    # Reusable UI elements (Toast, etc.)
-  contexts/      # Auth and Toast providers
-  pages/         # App pages (e.g., Settings)
-  services/      # Firebase and storage utilities
-  App.tsx        # App entry point
-```
-
----
-
 ## 🏁 Getting Started
 
 1. **Clone the repo:**
