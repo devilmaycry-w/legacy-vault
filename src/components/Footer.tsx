@@ -64,9 +64,7 @@ const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="border-t border-[#382f29] mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p className="text-[#b8a99d] text-sm">
-            © 2025 Legacy Family Memory Vault. All rights reserved.
-          </p>
+          
           <p className="text-[#b8a99d] text-sm mt-2 sm:mt-0">
             Preserving memories, connecting generations.
           </p>
