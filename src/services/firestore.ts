@@ -136,16 +136,24 @@ export const addUserToVault = async (
 };
 
 export const createMemory = async (memoryData: any) => {
+  // Only include 'approved' if privacy is 'admin-reviewed'
+  const dataToSave: any = {
+    ...memoryData,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+
+  if (memoryData.privacy === 'admin-reviewed') {
+    dataToSave.approved = typeof memoryData.approved === 'undefined' ? false : memoryData.approved;
+  } else {
+    // Ensure 'approved' is never included for other privacy types
+    if ('approved' in dataToSave) {
+      delete dataToSave.approved;
+    }
+  }
+
   return withErrorHandling(
-    () => addDoc(collection(db, 'memories'), {
-      ...memoryData,
-      // Always set approved to false if privacy is admin-reviewed and not set
-      approved: memoryData.privacy === 'admin-reviewed' && typeof memoryData.approved === 'undefined'
-        ? false
-        : memoryData.approved,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }),
+    () => addDoc(collection(db, 'memories'), dataToSave),
     'createMemory'
   );
 };
