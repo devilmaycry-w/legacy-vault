@@ -5,7 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { uploadToCloudinary } from '../services/cloudinary';
 import { createMemory } from '../services/firestore';
 import { Camera, Video, Music, FileText, Upload, X } from 'lucide-react';
-import { logActivity } from '../utils/logActivity'; // <-- ADD THIS LINE
+import { logActivity } from '../utils/logActivity';
 
 interface FilePreview {
   file: File;
@@ -18,7 +18,7 @@ const UploadPage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [files, setFiles] = useState<FilePreview[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -37,8 +37,7 @@ const UploadPage: React.FC = () => {
     }));
 
     setFiles(prev => [...prev, ...newFiles]);
-    
-    // Immediate feedback for file selection
+
     if (newFiles.length === 1) {
       showSuccess('File Selected', `${newFiles[0].file.name} ready for upload`);
     } else {
@@ -66,7 +65,7 @@ const UploadPage: React.FC = () => {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!title.trim()) {
       showError('Missing Title', 'Please enter a title for your memory');
       return;
@@ -86,17 +85,13 @@ const UploadPage: React.FC = () => {
 
     try {
       let mediaUrl = '';
-      
+
       if (files.length > 0) {
-        // Show immediate upload start feedback
         showSuccess('Upload Started', 'Uploading your files to Cloudinary...');
-        
-        // For now, we'll use the first file. You can extend this to handle multiple files
         const firstFile = files[0];
         setUploadProgress(prev => ({ ...prev, [firstFile.id]: 10 }));
-        
+
         try {
-          // Simulate progress updates for better UX
           const progressInterval = setInterval(() => {
             setUploadProgress(prev => {
               const current = prev[firstFile.id] || 10;
@@ -108,11 +103,10 @@ const UploadPage: React.FC = () => {
           }, 200);
 
           mediaUrl = await uploadToCloudinary(firstFile.file);
-          
+
           clearInterval(progressInterval);
           setUploadProgress(prev => ({ ...prev, [firstFile.id]: 100 }));
-          
-          // Quick success feedback for upload
+
           showSuccess('Upload Complete', `${firstFile.file.name} uploaded successfully!`);
         } catch (error) {
           console.error(`Failed to upload ${firstFile.file.name}:`, error);
@@ -121,10 +115,9 @@ const UploadPage: React.FC = () => {
         }
       }
 
-      // Show saving feedback
       showSuccess('Saving Memory', 'Saving your memory to the vault...');
 
-      // Save memory metadata to Firestore
+      // HERE is the important change: only set "approved: false" for admin-reviewed
       const memoryData = {
         title: title.trim(),
         description: description.trim(),
@@ -135,12 +128,12 @@ const UploadPage: React.FC = () => {
         privacy,
         tags: [],
         reactions: {},
-        vaultId: 'default-vault' // Replace with actual vault ID when vault system is implemented
+        vaultId: 'default-vault', // Replace with actual vault ID if needed
+        ...(privacy === 'admin-reviewed' ? { approved: false } : {}) // <-- Only add this for admin-reviewed
       };
 
       const memoryId = await createMemory(memoryData);
-      
-      // --- Log the activity here ---
+
       await logActivity({
         user: currentUser.displayName || currentUser.email || 'Unknown User',
         avatar: currentUser.photoURL || '',
@@ -148,12 +141,9 @@ const UploadPage: React.FC = () => {
         target: title.trim(),
         type: contentType,
       });
-      // ----------------------------
 
-      // Final success feedback
       showSuccess('Memory Saved!', 'Your memory has been successfully added to the vault');
 
-      // Reset form
       setFiles([]);
       setTitle('');
       setDescription('');
@@ -161,7 +151,6 @@ const UploadPage: React.FC = () => {
       setPrivacy('auto-approved');
       setUploadProgress({});
 
-      // Navigate back to dashboard after a short delay for user to see success
       setTimeout(() => {
         navigate('/dashboard');
       }, 1000);
