@@ -109,6 +109,9 @@ const Dashboard: React.FC = () => {
     (memory) => filter === 'all' || memory.mediaType === filter
   );
 
+  // Helper: is current user admin? You can remove this check if you have no role field.
+  const isAdmin = currentUser && currentUser.role === 'admin';
+
   return (
     <div
       className="min-h-screen bg-[#181411] text-white"
@@ -131,10 +134,10 @@ const Dashboard: React.FC = () => {
           }}
         >
           <div
-    className="bg-[#18141133] p-8 flex flex-col items-start justify-center min-h-[180px]"
-  >
-    <h1 className="text-3xl font-bold font-serif mb-2" style={{textShadow: '0 2px 6px #181411bb'}}>{vaultName}</h1>
-  </div>
+            className="bg-[#18141133] p-8 flex flex-col items-start justify-center min-h-[180px]"
+          >
+            <h1 className="text-3xl font-bold font-serif mb-2" style={{textShadow: '0 2px 6px #181411bb'}}>{vaultName}</h1>
+          </div>
         </div>
 
         {/* Members Section */}
@@ -268,6 +271,19 @@ const Dashboard: React.FC = () => {
               >
                 Storage Usage
               </Link>
+              {/* Only show to admins if you have a 'role' field; otherwise remove the check */}
+              {isAdmin && (
+                <Link
+                  to="/admin/review"
+                  className="block text-[#b8a99d] hover:text-[#e9883e] transition-colors"
+                  onClick={() => setAdminDrawerOpen(false)}
+                >
+                  Review Memories
+                </Link>
+              )}
+              {/* If you don't have 'role', you can simply always show the link:
+                <Link ...>Review Memories</Link>
+              */}
             </nav>
           </div>
         </div>
