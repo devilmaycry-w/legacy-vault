@@ -184,15 +184,27 @@ const Dashboard: React.FC = () => {
             </button>
           </div>
           <div className="flex items-center -space-x-2 sm:-space-x-3">
-            {members.slice(0, 5).map((member) => (
-              <img
-                key={member.id}
-                src={member.avatar}
-                alt={member.name}
-                title={`${member.name} (${member.role})`}
-                className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full border-2 sm:border-3 border-[#181411] hover:scale-110 transition-transform cursor-pointer"
-              />
-            ))}
+            {members.slice(0, 5).map((member) =>
+              member.avatar ? (
+                <img
+                  key={member.id}
+                  src={member.avatar}
+                  alt={member.name}
+                  title={`${member.name} (${member.role})`}
+                  className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full border-2 sm:border-3 border-[#181411] hover:scale-110 transition-transform cursor-pointer bg-[#e9883e] object-cover"
+                />
+              ) : (
+                <div
+                  key={member.id}
+                  title={`${member.name} (${member.role})`}
+                  className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 flex items-center justify-center rounded-full border-2 sm:border-3 border-[#181411] bg-[#e9883e] text-[#181411] font-bold text-lg sm:text-xl md:text-2xl hover:scale-110 transition-transform cursor-pointer select-none"
+                >
+                  {(member.name && member.name[0]?.toUpperCase()) ||
+                    (member.email && member.email[0]?.toUpperCase()) ||
+                    '?'}
+                </div>
+              )
+            )}
             <Link
               to="/members"
               className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-[#e9883e] text-[#181411] hover:bg-opacity-90 transition-colors ml-1 shadow-md"
