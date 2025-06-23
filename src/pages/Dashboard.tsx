@@ -8,6 +8,10 @@ import { loadVaultSettingsForUser } from '../services/vaultStorage';
 import MemoryCard from '../components/MemoryCard';
 import { Plus, Settings, AlertCircle } from 'lucide-react';
 
+// Firestore imports for real-time users
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../services/firebase';
+
 const Dashboard: React.FC = () => {
   const { currentUser } = useAuth();
   const { showError } = useToast();
@@ -41,7 +45,7 @@ const Dashboard: React.FC = () => {
     })();
   }, [currentUser]);
 
-  // Load memories and set mock members
+  // Load memories for the current user
   useEffect(() => {
     if (!currentUser) return;
 
@@ -71,46 +75,43 @@ const Dashboard: React.FC = () => {
     };
 
     loadMemories();
-
-    // Mock members
-    const mockMembers: VaultMember[] = [
-      {
-        id: '1',
-        email: 'sophia@example.com',
-        name: 'Sophia Carter',
-        avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg',
-        role: 'owner',
-        status: 'active',
-        joinedAt: new Date('2023-01-01')
-      },
-      {
-        id: '2',
-        email: 'ethan@example.com',
-        name: 'Ethan Carter',
-        avatar: 'https://images.pexels.com/photos/1680172/pexels-photo-1680172.jpeg',
-        role: 'editor',
-        status: 'active',
-        joinedAt: new Date('2023-02-15')
-      },
-      {
-        id: '3',
-        email: 'mia@example.com',
-        name: 'Mia Carter',
-        avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg',
-        role: 'viewer',
-        status: 'active',
-        joinedAt: new Date('2023-03-10')
-      }
-    ];
-    setMembers(mockMembers);
   }, [currentUser, showError]);
+
+  // Real-time listener for members (users collection)
+  useEffect(() => {
+    const usersRef = collection(db, 'users');
+    const unsubscribe = onSnapshot(
+      usersRef,
+      (snapshot) => {
+        const users: VaultMember[] = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            email: data.email,
+            name: data.name || data.email?.split('@')[0] || 'Unknown',
+            avatar: data.avatar || '',
+            role: data.role || 'viewer',
+            status: data.status || 'active',
+            joinedAt: data.joinedAt?.toDate ? data.joinedAt.toDate() : new Date(),
+          };
+        });
+        setMembers(users);
+      },
+      (error) => {
+        showError('Failed to fetch members', error.message);
+      }
+    );
+    return () => unsubscribe();
+  }, [showError]);
 
   const filteredMemories = memories.filter(
     (memory) => filter === 'all' || memory.mediaType === filter
   );
 
-  // Helper: is current user admin? You can remove this check if you have no role field.
-  const isAdmin = currentUser && currentUser.role === 'admin';
+  // Find current user info in members (for admin check)
+  const currentUserInfo = members.find(m => m.email === currentUser?.email);
+  // Helper: is current user admin/owner? (adjust as needed for your role system)
+  const isAdmin = currentUserInfo && (currentUserInfo.role === 'admin' || currentUserInfo.role === 'owner');
 
   return (
     <div
@@ -144,11 +145,42 @@ const Dashboard: React.FC = () => {
         <section className="bg-[rgba(56,47,41,0.6)] backdrop-blur-md border border-[rgba(255,255,255,0.05)] rounded-2xl p-4 sm:p-6 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg sm:text-xl font-semibold font-serif">Members</h2>
+            {/* Creative Settings Button */}
             <button
               onClick={() => setAdminDrawerOpen(!adminDrawerOpen)}
-              className="p-2 text-[#b8a99d] hover:text-[#e9883e] transition-colors"
+              className={`
+                p-2 rounded-full shadow-lg border-2 border-[#e9883e]
+                bg-gradient-to-tr from-[#382f29] via-[#181411] to-[#e9883e]/30
+                transition-all duration-300
+                hover:scale-110 hover:shadow-[0_0_20px_2px_#e9883e77]
+                active:scale-95
+                group
+              `}
+              style={{
+                boxShadow: adminDrawerOpen
+                  ? '0 0 30px 6px #e9883e'
+                  : '0 2px 12px 0px #181411dd'
+              }}
+              aria-label="Open Admin Tools"
             >
-              <Settings className="w-5 h-5" />
+              <span className="relative flex items-center justify-center">
+                <Settings
+                  className={`
+                    w-7 h-7 text-[#e9883e] transition-transform duration-300
+                    group-hover:animate-spin
+                    ${adminDrawerOpen ? 'animate-spin' : 'animate-none'}
+                  `}
+                />
+                {/* Pulse ring effect */}
+                <span
+                  className={`
+                    absolute inline-flex h-full w-full rounded-full
+                    ${adminDrawerOpen ? 'animate-ping' : ''}
+                    bg-[#e9883e]/30
+                    pointer-events-none
+                  `}
+                ></span>
+              </span>
             </button>
           </div>
           <div className="flex items-center -space-x-2 sm:-space-x-3">
@@ -271,7 +303,7 @@ const Dashboard: React.FC = () => {
               >
                 Storage Usage
               </Link>
-              {/* Only show to admins if you have a 'role' field; otherwise remove the check */}
+              {/* Only show to admins/owners if you have a 'role' field */}
               {isAdmin && (
                 <Link
                   to="/admin/review"
@@ -281,9 +313,6 @@ const Dashboard: React.FC = () => {
                   Review Memories
                 </Link>
               )}
-              {/* If you don't have 'role', you can simply always show the link:
-                <Link ...>Review Memories</Link>
-              */}
             </nav>
           </div>
         </div>
