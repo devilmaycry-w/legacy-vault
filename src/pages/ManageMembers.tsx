@@ -4,11 +4,13 @@ import { useToast } from '../contexts/ToastContext';
 import { VaultMember } from '../types';
 import { saveInvitation } from '../services/firestore';
 import MemberCard from '../components/MemberCard';
-import { UserPlus, Search, X, Send, AlertTriangle, ExternalLink } from 'lucide-react';
+import { UserPlus, Search, X, Send, ExternalLink } from 'lucide-react';
 
 // Firestore imports
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase'; // Make sure this path is correct
+
+const APP_LINK = 'https://legacy-memories.netlify.app/';
 
 const ManageMembers: React.FC = () => {
   const { currentUser } = useAuth();
@@ -19,6 +21,7 @@ const ManageMembers: React.FC = () => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'viewer' | 'editor' | 'owner'>('viewer');
   const [loading, setLoading] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
     // Real-time Firestore listener
@@ -82,6 +85,18 @@ const ManageMembers: React.FC = () => {
     }
   };
 
+  // Copy link to clipboard
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(APP_LINK);
+    showSuccess('Link Copied!', 'App link copied to clipboard.');
+  };
+
+  // Share link to WhatsApp
+  const handleShareWhatsApp = () => {
+    const url = `https://wa.me/?text=${encodeURIComponent(`Join our family vault: ${APP_LINK}`)}`;
+    window.open(url, '_blank');
+  };
+
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) {
@@ -118,13 +133,7 @@ const ManageMembers: React.FC = () => {
       setMembers(prev => [...prev, newMember]);
       setInviteEmail('');
       setInviteRole('viewer');
-      setShowInviteForm(false);
-
-      showWarning(
-        'Invitation Saved!',
-        'Invitation saved to database. Since Firebase email links require Firebase hosting, please manually share the app link with the invited user.'
-      );
-
+      setShowShare(true); // Show share modal
     } catch (error: any) {
       console.error('Failed to save invite:', error);
       showError('Invitation Failed', 'Failed to save invitation. Please try again.');
@@ -199,28 +208,6 @@ const ManageMembers: React.FC = () => {
                 <X className="w-6 h-6" />
               </button>
             </div>
-
-            {/* Alternative Invitation Info */}
-            <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-blue-400 font-semibold text-sm mb-1">Alternative Invitation Method</h4>
-                  <p className="text-blue-200 text-xs leading-relaxed mb-2">
-                    Since this app is deployed on Netlify (not Firebase hosting), automatic email invitations aren't available. The invitation will be saved to the database, and you can manually share the app link.
-                  </p>
-                  <a 
-                    href="https://legacy-memories.netlify.app/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-blue-300 hover:text-blue-200 text-xs"
-                  >
-                    App Link <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              </div>
-            </div>
-
             <form onSubmit={handleInviteSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[#b8a99d] mb-1">
@@ -273,6 +260,43 @@ const ManageMembers: React.FC = () => {
                 )}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Share Link Modal */}
+      {showShare && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-[rgba(24,20,17,0.95)] backdrop-blur-md rounded-2xl p-6 w-full max-w-xs border border-[#382f29]">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold text-white font-serif">Share App Link</h4>
+              <button
+                onClick={() => {
+                  setShowShare(false);
+                  setShowInviteForm(false);
+                }}
+                className="text-[#b8a99d] hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 bg-[#2c2520] rounded-lg px-3 py-2">
+                <span className="text-[#e9883e] font-mono text-xs break-all">{APP_LINK}</span>
+                <button onClick={handleCopyLink} className="ml-auto text-[#e9883e] hover:text-white transition">
+                  <ExternalLink className="w-5 h-5" />
+                </button>
+              </div>
+              <button
+                onClick={handleShareWhatsApp}
+                className="flex items-center justify-center gap-2 bg-[#25D366] text-white px-4 py-2 rounded-lg font-bold hover:bg-[#1EBE5D] transition"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 32 32">
+                  <path d="M16.003 4.003a11.963 11.963 0 0 0-10.438 17.35L4 28l6.779-1.56A11.963 11.963 0 1 0 16.003 4.003zm0 2.17a9.78 9.78 0 0 1 8.607 14.573l-.183.312.444 2.523-2.59-.43-.3.177a9.779 9.779 0 1 1-6.978-17.155zm-5.495 6.38c-.17.005-.342.032-.508.082-.515.151-.844.641-.737 1.156.19 1.017.68 2.017 1.39 2.918.817 1.033 2.06 2.216 3.812 2.697 1.014.27 1.844.218 2.483.055.541-.14.831-.77.554-1.27l-.797-1.448c-.17-.312-.542-.454-.872-.343l-.716.242a.302.302 0 0 1-.234-.017c-.53-.265-1.537-1.034-2.121-2.273a.292.292 0 0 1-.012-.245l.253-.695a.713.713 0 0 0-.367-.893l-1.483-.727a.873.873 0 0 0-.139-.035z"/>
+                </svg>
+                Share on WhatsApp
+              </button>
+            </div>
           </div>
         </div>
       )}
