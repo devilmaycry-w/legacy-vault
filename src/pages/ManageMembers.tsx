@@ -210,7 +210,7 @@ const ManageMembers: React.FC = () => {
                     Since this app is deployed on Netlify (not Firebase hosting), automatic email invitations aren't available. The invitation will be saved to the database, and you can manually share the app link.
                   </p>
                   <a 
-                    href="https://fluffy-basbousa-e7a79b.netlify.app/" 
+                    href="https://legacy-memories.netlify.app/" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-blue-300 hover:text-blue-200 text-xs"
