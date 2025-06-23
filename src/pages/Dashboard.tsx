@@ -6,7 +6,7 @@ import { Memory, VaultMember } from '../types';
 import { getMemories } from '../services/firestore';
 import { loadVaultSettingsForUser } from '../services/vaultStorage';
 import MemoryCard from '../components/MemoryCard';
-import { Plus, Settings, AlertCircle } from 'lucide-react';
+import { Plus, Settings } from 'lucide-react';
 
 // Firestore imports for real-time users
 import { collection, onSnapshot } from 'firebase/firestore';
@@ -113,6 +113,43 @@ const Dashboard: React.FC = () => {
   // Helper: is current user admin/owner? (adjust as needed for your role system)
   const isAdmin = currentUserInfo && (currentUserInfo.role === 'admin' || currentUserInfo.role === 'owner');
 
+  // Get the avatar URL or fallback initial for the current user
+  const renderUserAvatarCog = () => {
+    const size = 'w-9 h-9 sm:w-10 sm:h-10';
+    if (currentUserInfo && currentUserInfo.avatar) {
+      return (
+        <span className="relative inline-block">
+          <img
+            src={currentUserInfo.avatar}
+            alt={currentUserInfo.name}
+            className={`rounded-full border-2 border-[#e9883e] bg-[#e9883e] object-cover ${size}`}
+          />
+          <span className="absolute bottom-[-2px] right-[-2px] bg-[#181411] rounded-full p-0.5">
+            <Settings className="w-4 h-4 text-[#e9883e]" />
+          </span>
+        </span>
+      );
+    } else {
+      // Fallback: use initial
+      const initial =
+        (currentUserInfo?.name && currentUserInfo.name[0]?.toUpperCase()) ||
+        (currentUserInfo?.email && currentUserInfo.email[0]?.toUpperCase()) ||
+        '?';
+      return (
+        <span className="relative inline-block">
+          <div
+            className={`flex items-center justify-center rounded-full border-2 border-[#e9883e] bg-[#e9883e] text-[#181411] font-bold text-lg ${size}`}
+          >
+            {initial}
+          </div>
+          <span className="absolute bottom-[-2px] right-[-2px] bg-[#181411] rounded-full p-0.5">
+            <Settings className="w-4 h-4 text-[#e9883e]" />
+          </span>
+        </span>
+      );
+    }
+  };
+
   return (
     <div
       className="min-h-screen bg-[#181411] text-white"
@@ -145,42 +182,13 @@ const Dashboard: React.FC = () => {
         <section className="bg-[rgba(56,47,41,0.6)] backdrop-blur-md border border-[rgba(255,255,255,0.05)] rounded-2xl p-4 sm:p-6 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg sm:text-xl font-semibold font-serif">Members</h2>
-            {/* Creative Settings Button */}
+            {/* User avatar + settings cog button */}
             <button
               onClick={() => setAdminDrawerOpen(!adminDrawerOpen)}
-              className={`
-                p-2 rounded-full shadow-lg border-2 border-[#e9883e]
-                bg-gradient-to-tr from-[#382f29] via-[#181411] to-[#e9883e]/30
-                transition-all duration-300
-                hover:scale-110 hover:shadow-[0_0_20px_2px_#e9883e77]
-                active:scale-95
-                group
-              `}
-              style={{
-                boxShadow: adminDrawerOpen
-                  ? '0 0 30px 6px #e9883e'
-                  : '0 2px 12px 0px #181411dd'
-              }}
+              className="flex items-center justify-center focus:outline-none"
               aria-label="Open Admin Tools"
             >
-              <span className="relative flex items-center justify-center">
-                <Settings
-                  className={`
-                    w-7 h-7 text-[#e9883e] transition-transform duration-300
-                    group-hover:animate-spin
-                    ${adminDrawerOpen ? 'animate-spin' : 'animate-none'}
-                  `}
-                />
-                {/* Pulse ring effect */}
-                <span
-                  className={`
-                    absolute inline-flex h-full w-full rounded-full
-                    ${adminDrawerOpen ? 'animate-ping' : ''}
-                    bg-[#e9883e]/30
-                    pointer-events-none
-                  `}
-                ></span>
-              </span>
+              {renderUserAvatarCog()}
             </button>
           </div>
           <div className="flex items-center -space-x-2 sm:-space-x-3">
@@ -243,7 +251,7 @@ const Dashboard: React.FC = () => {
           ) : permissionError ? (
             <div className="text-center py-12">
               <div className="flex items-center justify-center mb-4">
-                <AlertCircle className="w-12 h-12 text-red-400" />
+                <svg className="w-12 h-12 text-red-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 8v4m0 4h.01" /></svg>
               </div>
               <h3 className="text-lg font-semibold text-red-400 mb-2">Permission Denied</h3>
               <p className="text-[#b8a99d] mb-4 max-w-md mx-auto text-sm">
