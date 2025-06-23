@@ -4,7 +4,11 @@ import { useToast } from '../contexts/ToastContext';
 import { VaultMember } from '../types';
 import { saveInvitation } from '../services/firestore';
 import MemberCard from '../components/MemberCard';
-import { UserPlus, Search, X, Send, Mail, Shield, AlertTriangle, ExternalLink } from 'lucide-react';
+import { UserPlus, Search, X, Send, AlertTriangle, ExternalLink } from 'lucide-react';
+
+// Firestore imports
+import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../services/firebase'; // Make sure this path is correct
 
 const ManageMembers: React.FC = () => {
   const { currentUser } = useAuth();
@@ -17,58 +21,69 @@ const ManageMembers: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Mock members data - Replace with Firebase queries
-    const mockMembers: VaultMember[] = [
-      {
-        id: '1',
-        email: 'sophia@example.com',
-        name: 'Sophia Carter',
-        avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg',
-        role: 'owner',
-        status: 'active',
-        joinedAt: new Date('2023-01-01')
+    // Real-time Firestore listener
+    const usersRef = collection(db, 'users');
+    const unsubscribe = onSnapshot(
+      usersRef,
+      (snapshot) => {
+        const users: VaultMember[] = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            email: data.email,
+            name: data.name || data.email?.split('@')[0] || 'Unknown',
+            avatar: data.avatar || '',
+            role: data.role || 'viewer',
+            status: data.status || 'active',
+            joinedAt: data.joinedAt?.toDate ? data.joinedAt.toDate() : new Date(),
+          };
+        });
+        setMembers(users);
       },
-      {
-        id: '2',
-        email: 'ethan@example.com',
-        name: 'Ethan Carter',
-        avatar: 'https://images.pexels.com/photos/1680172/pexels-photo-1680172.jpeg',
-        role: 'editor',
-        status: 'active',
-        joinedAt: new Date('2023-02-15')
-      },
-      {
-        id: '3',
-        email: 'olivia@example.com',
-        name: 'Olivia Carter',
-        avatar: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg',
-        role: 'viewer',
-        status: 'pending',
-        joinedAt: new Date('2023-03-20')
+      (error) => {
+        showError('Realtime fetch failed', error.message);
       }
-    ];
-
-    setMembers(mockMembers);
-  }, []);
+    );
+    // Cleanup on unmount
+    return () => unsubscribe();
+  }, [showError]);
 
   const filteredMembers = members.filter(member =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleRoleChange = (memberId: string, newRole: 'owner' | 'editor' | 'viewer') => {
+  // Only owner can change roles
+  const handleRoleChange = async (memberId: string, newRole: 'owner' | 'editor' | 'viewer') => {
+    // Find the current user in the members list
+    const currentUserInfo = members.find(m => m.email === currentUser?.email);
+
+    // Only allow owners to change roles
+    if (!currentUserInfo || currentUserInfo.role !== 'owner') {
+      showWarning(
+        'Sit Back & Enjoy!',
+        'Role changes can only be done by admin. So sit back and enjoy! 😎'
+      );
+      return;
+    }
+
     setMembers(prev =>
       prev.map(member =>
         member.id === memberId ? { ...member, role: newRole } : member
       )
     );
     showSuccess('Role Updated', `Member role changed to ${newRole}`);
-    // TODO: Update role in Firebase
+
+    // Update role in Firestore
+    try {
+      await updateDoc(doc(db, 'users', memberId), { role: newRole });
+    } catch (error: any) {
+      showError('Failed to update role in Firestore', error.message);
+    }
   };
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!currentUser) {
       showError('Authentication Error', 'You must be logged in to send invitations');
       return;
@@ -77,10 +92,7 @@ const ManageMembers: React.FC = () => {
     setLoading(true);
 
     try {
-      // Show immediate feedback
       showInfo('Saving Invitation', 'Saving invitation to database...');
-      
-      // Save invitation to Firestore (this will work)
       const invitationData = {
         email: inviteEmail,
         role: inviteRole,
@@ -91,12 +103,12 @@ const ManageMembers: React.FC = () => {
       };
 
       await saveInvitation(invitationData);
-      
+
       // Add pending member to local state for immediate UI feedback
       const newMember: VaultMember = {
         id: Date.now().toString(),
         email: inviteEmail,
-        name: inviteEmail.split('@')[0], // Temporary name until they join
+        name: inviteEmail.split('@')[0],
         avatar: '',
         role: inviteRole,
         status: 'pending',
@@ -107,13 +119,12 @@ const ManageMembers: React.FC = () => {
       setInviteEmail('');
       setInviteRole('viewer');
       setShowInviteForm(false);
-      
-      // Show alternative invitation methods
+
       showWarning(
-        'Invitation Saved!', 
+        'Invitation Saved!',
         'Invitation saved to database. Since Firebase email links require Firebase hosting, please manually share the app link with the invited user.'
       );
-      
+
     } catch (error: any) {
       console.error('Failed to save invite:', error);
       showError('Invitation Failed', 'Failed to save invitation. Please try again.');
@@ -121,6 +132,9 @@ const ManageMembers: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Find the current user info for conditional UI (optional, e.g., to pass to MemberCard)
+  const currentUserInfo = members.find(m => m.email === currentUser?.email);
 
   return (
     <div className="min-h-screen bg-[#181411] text-white">
