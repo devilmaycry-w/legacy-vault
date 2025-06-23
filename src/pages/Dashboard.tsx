@@ -163,18 +163,47 @@ const Dashboard: React.FC = () => {
       <div className="px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 py-8">
         {/* Static Hero Section */}
         <div
-          className="rounded-2xl shadow-xl mb-8 overflow-hidden relative"
+          className="
+            rounded-2xl shadow-xl mb-8 overflow-hidden relative
+            min-h-[180px] md:min-h-[380px]  /* Taller on desktop */
+            flex items-stretch
+          "
           style={{
             backgroundImage: `url(${vaultBackground})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            minHeight: '180px',
           }}
         >
+          {/* Overlay: makes text readable but lets image show through */}
           <div
-            className="bg-[#18141133] p-8 flex flex-col items-start justify-center min-h-[180px]"
+            className="
+              absolute inset-0
+              bg-gradient-to-b from-[#18141177] via-[#18141133] to-transparent
+              pointer-events-none
+              z-0
+            "
+          />
+          <div
+            className="
+              relative z-10
+              flex flex-col items-start justify-center
+              w-full h-full px-8 py-8
+              min-h-[inherit]
+            "
+            style={{
+              // Center on desktop, start on mobile
+              justifyContent: 'center',
+            }}
           >
-            <h1 className="text-3xl font-bold font-serif mb-2" style={{textShadow: '0 2px 6px #181411bb'}}>{vaultName}</h1>
+            <h1
+              className="
+                text-3xl md:text-5xl font-bold font-serif mb-2
+                drop-shadow-md
+                "
+              style={{ textShadow: '0 2px 6px #181411bb' }}
+            >
+              {vaultName}
+            </h1>
           </div>
         </div>
 
