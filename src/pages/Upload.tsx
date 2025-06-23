@@ -117,7 +117,6 @@ const UploadPage: React.FC = () => {
 
       showSuccess('Saving Memory', 'Saving your memory to the vault...');
 
-      // HERE is the important change: only set "approved: false" for admin-reviewed
       const memoryData = {
         title: title.trim(),
         description: description.trim(),
@@ -128,8 +127,8 @@ const UploadPage: React.FC = () => {
         privacy,
         tags: [],
         reactions: {},
-        vaultId: 'default-vault', // Replace with actual vault ID if needed
-        ...(privacy === 'admin-reviewed' ? { approved: false } : {}) // <-- Only add this for admin-reviewed
+        vaultId: 'default-vault',
+        ...(privacy === 'admin-reviewed' ? { approved: false } : {})
       };
 
       const memoryId = await createMemory(memoryData);
@@ -143,6 +142,14 @@ const UploadPage: React.FC = () => {
       });
 
       showSuccess('Memory Saved!', 'Your memory has been successfully added to the vault');
+
+      // Show extra toast if admin-reviewed
+      if (privacy === 'admin-reviewed') {
+        showSuccess(
+          'Pending Admin Review',
+          'Your memory will be visible after it is reviewed and approved by an admin.'
+        );
+      }
 
       setFiles([]);
       setTitle('');
